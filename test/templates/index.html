@@ -221,14 +221,62 @@
         }
         
         // Game loop
+        let lastColor = null;
+
+        // Function to determine which colored area the spaceship is in
+        function checkSpaceshipArea() {
+            const centerX = spaceshipX + spaceshipSize / 2;
+            const centerY = spaceshipY + spaceshipSize / 2;
+            for (const area of areas) {
+                if (
+                    centerX >= area.x &&
+                    centerX <= area.x + area.width &&
+                    centerY >= area.y &&
+                    centerY <= area.y + area.height
+                ) {
+                    return area.color;  // Return the area's fill color
+                }
+            }
+            return null;  // Not inside any area
+        }
+    
+        // Function to send the color to the backend
+        function sendColorToBackend(color) {
+            fetch('/print_color', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ color: color })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Optionally handle the response
+                // console.log('Backend response:', data);
+            })
+            .catch(error => {
+                console.error('Error sending color:', error);
+            });
+        }
+    
+        // Modified game loop to include sending color information
         function gameLoop() {
             update();
             draw();
+    
+            const currentAreaColor = checkSpaceshipArea();
+            // Only send if the color has changed to avoid flooding the backend
+            if (currentAreaColor !== lastColor) {
+                lastColor = currentAreaColor;
+                sendColorToBackend(currentAreaColor);
+            }
+    
             requestAnimationFrame(gameLoop);
         }
-        
-        // Start the game
+    
+        // Start the game loop
         gameLoop();
+        
     </script>
 </body>
 </html>
