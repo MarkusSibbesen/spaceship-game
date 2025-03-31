@@ -89,7 +89,7 @@ def generate_text(prompt, model, tokenizer, max_length, steering_vector, layer):
     for _ in range(max_length):
 
         with torch.no_grad():
-            next_token = steer_model(model, input_ids, layer, steering_vector, scalar_value*10)
+            next_token = steer_model(model, input_ids, layer, steering_vector, scalar_value)
         
         # Add the token to the input_ids
         input_ids = torch.cat([input_ids, next_token], dim=-1)
@@ -118,7 +118,7 @@ def main():
     listener_thread.daemon = True
     listener_thread.start()
 
-    steering_vector = torch.load('steering_vectors/test_vector_1.pt', weights_only=True)
+    steering_vector = torch.load('steering_vectors/raw_means/layer3_label3.pt', weights_only=True)
     # steering_vector = torch.rand(768)
     
     print("\nInteractive Text Generation")
@@ -128,7 +128,7 @@ def main():
     
     prompt = input("\nEnter a prompt: ")
     
-    generate_text(prompt, model, tokenizer, 1000, steering_vector, 2)
+    generate_text(prompt, model, tokenizer, 1000, steering_vector, 3)
 
 
 if __name__ == '__main__':
