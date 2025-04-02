@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spaceship Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            color: #333;
+        }
+        #gameCanvas {
+            background-color: black;
+            border: 2px solid #333;
+            margin-top: 20px;
+        }
+        .instructions {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #eee;
+            border-radius: 5px;
+            max-width: 500px;
+        }
+        #textStreamContainer {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            color: #fff;
+            border-radius: 5px;
+            width: 500px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Spaceship Game</h1>
+    
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    
+    <div class="instructions">
+        <p><strong>Controls:</strong> Use W, A, S, D or arrow keys to move the spaceship</p>
+        <p>Explore the colored areas scattered throughout space!</p>
+    </div>
+    
+    <div id="textStreamContainer">Waiting for text stream...</div>
+    
+    <script>
+        // Game initialization
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const textStreamContainer = document.getElementById('textStreamContainer');
+        
+        // Game settings
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+        
+        // Spaceship settings
+        const spaceshipSize = 30;
+        let spaceshipX = WIDTH / 2 - spaceshipSize / 2;
+        let spaceshipY = HEIGHT / 2 - spaceshipSize / 2;
+        const speed = 5;
+        
+        // Colored areas settings
+        const NUM_AREAS = 10;
+        const MIN_AREA_SIZE = 40;
+        const MAX_AREA_SIZE = 100;
+        const areas = [];
+        
+        // Function to check if two rectangles overlap
+        function checkOverlap(rect1, rect2) {
+            return (rect1.x < rect2.x + rect2.width &&
+                    rect1.x + rect1.width > rect2.x &&
+                    rect1.y < rect2.y + rect2.height &&
+                    rect1.y + rect1.height > rect2.y);
+        }
+        
+        // Function to check if rectangle is inside canvas boundaries
+        function isInsideCanvas(rect) {
+            return (rect.x >= 0 && 
+                    rect.x + rect.width <= WIDTH &&
+                    rect.y >= 0 &&
+                    rect.y + rect.height <= HEIGHT);
+        }
+        
+        // Generate random color
+        function randomColor() {
+            const colors = [
+                'rgba(255, 0, 0, 0.3)',    // Red
+                'rgba(0, 255, 0, 0.3)',    // Green
+                'rgba(0, 0, 255, 0.3)',    // Blue
+                'rgba(255, 255, 0, 0.3)',  // Yellow
+                'rgba(255, 0, 255, 0.3)',  // Magenta
+                'rgba(0, 255, 255, 0.3)',  // Cyan
+                'rgba(255, 165, 0, 0.3)',  // Orange
+                'rgba(128, 0, 128, 0.3)',  // Purple
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        // Generate random colored areas
+        function generateAreas() {
+            let attempts = 0;
+            const maxAttempts = 1000; // Prevent infinite loop
+            
+            while (areas.length < NUM_AREAS && attempts < maxAttempts) {
+                const width = Math.floor(Math.random() * (MAX_AREA_SIZE - MIN_AREA_SIZE) + MIN_AREA_SIZE);
+                const height = Math.floor(Math.random() * (MAX_AREA_SIZE - MIN_AREA_SIZE) + MIN_AREA_SIZE);
+                const x = Math.floor(Math.random() * (WIDTH - width));
+                const y = Math.floor(Math.random() * (HEIGHT - height));
+                
+                const newArea = {
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    color: randomColor(),
+                    borderColor: randomColor().replace('0.3', '0.8')
+                };
+                
+                // Check if this area overlaps with any existing area
+                let overlaps = false;
+                for (const area of areas) {
+                    if (checkOverlap(newArea, area)) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+                
+                // Also check if it overlaps with the initial spaceship position
+                const spaceshipRect = {
+                    x: WIDTH / 2 - spaceshipSize / 2 - 10, // Add some buffer around spaceship
+                    y: HEIGHT / 2 - spaceshipSize / 2 - 10,
+                    width: spaceshipSize + 20,
+                    height: spaceshipSize + 20
+                };
+                
+                if (!overlaps && !checkOverlap(newArea, spaceshipRect) && isInsideCanvas(newArea)) {
+                    areas.push(newArea);
+                }
+                
+                attempts++;
+            }
+        }
+        
+        // Generate the areas
+        generateAreas();
+        
+        // Keep track of pressed keys
+        const keys = {};
+        
+        // Handle key press events
+        window.addEventListener('keydown', function(e) {
+            keys[e.key] = true;
+            
+            // Prevent scrolling when using arrow keys or WASD
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        
+        window.addEventListener('keyup', function(e) {
+            keys[e.key] = false;
+        });
+        
+        // Update game state
+        function update() {
+            // Movement with WASD or arrow keys
+            if ((keys['w'] || keys['ArrowUp']) && spaceshipY > 0) {
+                spaceshipY -= speed;
+            }
+            if ((keys['s'] || keys['ArrowDown']) && spaceshipY < HEIGHT - spaceshipSize) {
+                spaceshipY += speed;
+            }
+            if ((keys['a'] || keys['ArrowLeft']) && spaceshipX > 0) {
+                spaceshipX -= speed;
+            }
+            if ((keys['d'] || keys['ArrowRight']) && spaceshipX < WIDTH - spaceshipSize) {
+                spaceshipX += speed;
+            }
+        }
+        
+        // Draw everything
+        function draw() {
+            // Clear the canvas
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            
+            // Draw the stars first (background)
+            drawStars();
+            
+            // Draw the colored areas
+            for (const area of areas) {
+                // Fill area with semi-transparent color
+                ctx.fillStyle = area.color;
+                ctx.fillRect(area.x, area.y, area.width, area.height);
+                
+                // Draw border with solid color
+                ctx.strokeStyle = area.borderColor;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(area.x, area.y, area.width, area.height);
+            }
+            
+            // Draw the spaceship
+            ctx.fillStyle = 'white';
+            ctx.fillRect(spaceshipX, spaceshipY, spaceshipSize, spaceshipSize);
+        }
+        
+        // Create a starry background
+        const stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * WIDTH,
+                y: Math.random() * HEIGHT,
+                size: Math.random() * 2 + 1
+            });
+        }
+        
+        function drawStars() {
+            ctx.fillStyle = 'white';
+            for (const star of stars) {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Game loop
+        let lastColor = null;
+
+        // Function to determine which colored area the spaceship is in
+        function checkSpaceshipArea() {
+            const centerX = spaceshipX + spaceshipSize / 2;
+            const centerY = spaceshipY + spaceshipSize / 2;
+            for (const area of areas) {
+                if (
+                    centerX >= area.x &&
+                    centerX <= area.x + area.width &&
+                    centerY >= area.y &&
+                    centerY <= area.y + area.height
+                ) {
+                    return area.color;  // Return the area's fill color
+                }
+            }
+            return null;  // Not inside any area
+        }
+    
+        // Function to send the color to the backend
+        function sendKeywordToBackend(keyword) {
+            fetch('/post_keyword', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ keyword: keyword })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Optionally handle the response
+                // console.log('Backend response:', data);
+            })
+            .catch(error => {
+                console.error('Error sending color:', error);
+            });
+        }
+        
+        // Set up SSE connection for text stream
+        const eventSource = new EventSource('/text_stream');
+        
+        eventSource.onmessage = function(event) {
+            const word = event.data;
+            textStreamContainer.textContent += " " + word;
+            
+            // Auto-scroll to the bottom
+            textStreamContainer.scrollTop = textStreamContainer.scrollHeight;
+        };
+        
+        eventSource.onerror = function() {
+            console.error('SSE connection error');
+            eventSource.close();
+            
+            // Try to reconnect after a delay
+            setTimeout(() => {
+                location.reload(); // Simple reconnection by reloading the page
+            }, 5000);
+        };
+    
+        // Modified game loop to include sending color information
+        function gameLoop() {
+            update();
+            draw();
+    
+            const currentAreaColor = checkSpaceshipArea();
+            // Only send if the color has changed to avoid flooding the backend
+            if (currentAreaColor !== lastColor) {
+                lastColor = currentAreaColor;
+                sendColorToBackend(currentAreaColor);
+            }
+    
+            requestAnimationFrame(gameLoop);
+        }
+    
+        // Start the game loop
+        gameLoop();
+        
+    </script>
+</body>
+</html>
