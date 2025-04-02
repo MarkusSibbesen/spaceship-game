@@ -29,6 +29,19 @@
             border-radius: 5px;
             max-width: 500px;
         }
+        #textStreamContainer {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            color: #fff;
+            border-radius: 5px;
+            width: 500px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -38,13 +51,16 @@
     
     <div class="instructions">
         <p><strong>Controls:</strong> Use W, A, S, D or arrow keys to move the spaceship</p>
-        <p>Explore the colored areas scattered throughout space!</p>
+        <p>Explore the boxes: dragon, cake, and cat!</p>
     </div>
+
+    <div id="textStreamContainer">Once upon a time</div>
     
     <script>
         // Game initialization
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const textContainer = document.getElementById('textStreamContainer');
         
         // Game settings
         const WIDTH = canvas.width;
@@ -56,10 +72,12 @@
         let spaceshipY = HEIGHT / 2 - spaceshipSize / 2;
         const speed = 5;
         
-        // Colored areas settings
-        const NUM_AREAS = 10;
-        const MIN_AREA_SIZE = 40;
-        const MAX_AREA_SIZE = 100;
+        // List of elements to create boxes for
+        const elements = ["dragon", "cake", "cat"];
+        
+        // Box settings
+        const MIN_AREA_SIZE = 80;
+        const MAX_AREA_SIZE = 120;
         const areas = [];
         
         // Function to check if two rectangles overlap
@@ -78,27 +96,26 @@
                     rect.y + rect.height <= HEIGHT);
         }
         
-        // Generate random color
-        function randomColor() {
-            const colors = [
-                'rgba(255, 0, 0, 0.3)',    // Red
-                'rgba(0, 255, 0, 0.3)',    // Green
-                'rgba(0, 0, 255, 0.3)',    // Blue
-                'rgba(255, 255, 0, 0.3)',  // Yellow
-                'rgba(255, 0, 255, 0.3)',  // Magenta
-                'rgba(0, 255, 255, 0.3)',  // Cyan
-                'rgba(255, 165, 0, 0.3)',  // Orange
-                'rgba(128, 0, 128, 0.3)',  // Purple
-            ];
-            return colors[Math.floor(Math.random() * colors.length)];
+        // Generate specific colors for each element
+        function getColorForElement(element) {
+            const colorMap = {
+                "dragon": 'rgba(255, 0, 0, 0.3)',    // Red
+                "cake": 'rgba(255, 192, 203, 0.3)',  // Pink
+                "cat": 'rgba(255, 165, 0, 0.3)',    // Orange
+            };
+            
+            return colorMap[element] || 'rgba(0, 0, 255, 0.3)'; // Default blue if not found
         }
         
-        // Generate random colored areas
+        // Generate boxes for each element
         function generateAreas() {
             let attempts = 0;
             const maxAttempts = 1000; // Prevent infinite loop
             
-            while (areas.length < NUM_AREAS && attempts < maxAttempts) {
+            while (areas.length < elements.length && attempts < maxAttempts) {
+                // Get the current element we're creating a box for
+                const element = elements[areas.length];
+                
                 const width = Math.floor(Math.random() * (MAX_AREA_SIZE - MIN_AREA_SIZE) + MIN_AREA_SIZE);
                 const height = Math.floor(Math.random() * (MAX_AREA_SIZE - MIN_AREA_SIZE) + MIN_AREA_SIZE);
                 const x = Math.floor(Math.random() * (WIDTH - width));
@@ -109,8 +126,9 @@
                     y: y,
                     width: width,
                     height: height,
-                    color: randomColor(),
-                    borderColor: randomColor().replace('0.3', '0.8')
+                    color: getColorForElement(element),
+                    borderColor: getColorForElement(element).replace('0.3', '0.8'),
+                    element: element  // Store the element name
                 };
                 
                 // Check if this area overlaps with any existing area
@@ -194,6 +212,13 @@
                 ctx.strokeStyle = area.borderColor;
                 ctx.lineWidth = 2;
                 ctx.strokeRect(area.x, area.y, area.width, area.height);
+                
+                // Draw the element name inside the box
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(area.element, area.x + area.width / 2, area.y + area.height / 2);
             }
             
             // Draw the spaceship
@@ -221,9 +246,9 @@
         }
         
         // Game loop
-        let lastColor = null;
+        let lastElement = null;
 
-        // Function to determine which colored area the spaceship is in
+        // Function to determine which element's area the spaceship is in
         function checkSpaceshipArea() {
             const centerX = spaceshipX + spaceshipSize / 2;
             const centerY = spaceshipY + spaceshipSize / 2;
@@ -234,49 +259,83 @@
                     centerY >= area.y &&
                     centerY <= area.y + area.height
                 ) {
-                    return area.color;  // Return the area's fill color
+                    return area.element;  // Return the element name
                 }
             }
             return null;  // Not inside any area
         }
     
-        // Function to send the color to the backend
-        function sendColorToBackend(color) {
+        // Function to send the element to the backend using the existing /print_color endpoint
+        function sendElementToBackend(element) {
             fetch('/print_color', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ color: color })
+                body: JSON.stringify({ color: element })  // Using color parameter to send element name
             })
             .then(response => response.json())
             .then(data => {
-                // Optionally handle the response
-                // console.log('Backend response:', data);
+                console.log('Backend response:', data);
             })
             .catch(error => {
-                console.error('Error sending color:', error);
+                console.error('Error sending element:', error);
+            });
+        }
+
+        // Function to get generated text from backend
+        function updateTextStream() {
+            fetch('/get_next_word', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update the text container with the received text
+                if (data && data.token) {
+                    textContainer.innerHTML = textContainer.innerHTML + data.token;
+                    // Auto-scroll to the bottom if content overflows
+                    textContainer.scrollTop = textContainer.scrollHeight;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching text:', error);
             });
         }
     
-        // Modified game loop to include sending color information
+        // Game loop to include sending element information
         function gameLoop() {
             update();
             draw();
     
-            const currentAreaColor = checkSpaceshipArea();
-            // Only send if the color has changed to avoid flooding the backend
-            if (currentAreaColor !== lastColor) {
-                lastColor = currentAreaColor;
-                sendColorToBackend(currentAreaColor);
+            const currentElement = checkSpaceshipArea();
+            // Only send if the element has changed to avoid flooding the backend
+            if (currentElement !== lastElement) {
+                lastElement = currentElement;
+                if (currentElement) {
+                    sendElementToBackend(currentElement);
+                } else {
+                    // Send "none" or some indicator when not in any area
+                    sendElementToBackend("none");
+                }
             }
     
             requestAnimationFrame(gameLoop);
         }
-    
+        
+        fetch('/reinit', {method: 'POST'})
+        .then(response => response.json)
+        .catch(error => console.log(error))
+
         // Start the game loop
         gameLoop();
+
         
+        // Set up the text stream update to run every 0.2 seconds (200ms)
+        setInterval(updateTextStream, 500);
     </script>
 </body>
 </html>
